@@ -1,2 +1,2 @@
 # dicebot
-A discord dice bot
+A discord dice bot made to support Savage Worlds TTRPG
