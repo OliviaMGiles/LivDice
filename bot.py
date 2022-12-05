@@ -1,39 +1,32 @@
 import os
-import random
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-GUILD = os.getenv('DISCORD_GUILD')
+APPLICATION_ID = os.getenv('APPLICATION_ID')
 
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix=';', intents=intents)
+class Bot(commands.Bot):
+    def __init__(self):
+        intents = discord.Intents.default()
+        intents.message_content = True
+        super().__init__(command_prefix=';', intents=intents, application_id=APPLICATION_ID)
 
-@bot.event
-async def on_ready():
-    await load()
-    print(f'{bot.user.name} is connected to Discord!')
+    async def startup(self):
+            await bot.wait_until_ready()
+            print(f'{bot.user.name} is connected to Discord!')
 
+    async def setup_hook(self):
+        for file in os.listdir('./cogs'):
+            if file.endswith('py'):
+                try:
+                    await bot.load_extension(f'cogs.{file[:-3]}')
+                    print(f'Loaded {file}')
+                except Exception as e:
+                    print(f'Failed to load {file}')
+                    print(f'[ERROR] {e}')
+        self.loop.create_task(self.startup())
 
-@bot.command(aliases=['r','roll'])
-async def roll_dice(ctx, dice: str):
-    """Alieses = r, roll. Simulates rolling dice.
-    """
-    try:
-        rolls, limit = map(int, dice.split('d'))
-    except Exception:
-        await ctx.send('Bad format! Use _d_ format')
-        return
-    result = ', '.join(str(random.randint(1,limit)) for r in range(rolls))
-    await ctx.send(result)
-
-async def load():
-    for file in os.listdir('./cogs'):
-        if file.endswith('py'):
-            await bot.load_extension(f'cogs.{file[:-3]}')
-    print(f'Finished loading')
-
+bot = Bot()
 bot.run(TOKEN)
