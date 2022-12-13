@@ -1,8 +1,7 @@
 import random
 import math
 import discord
-from dotenv import load_dotenv
-from discord.ext    import commands
+from discord.ext import commands
 from discord import app_commands
 from discord.app_commands import Choice
 from typing import Literal
@@ -11,35 +10,19 @@ class Savage_Worlds(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_group(name='sw', fallback ="get")
-    async def sw_command(self, ctx: commands.Context):
-        """Group for savage worlds commands
-        Group will include
-            ping (for testing)
-            trait roll
-            damage roll
-            status tracking
-            benny tracking
-        """
+    sw_group = app_commands.Group(name="sw", description="Savage Worlds commands")
 
-    @sw_command.command(name="ping")
-    async def ping_command(self, ctx: commands.Context):
-        """This command is an app command AND a message command."""
-        await ctx.send("Pong!", ephemeral=True)
+    @sw_group.command(name='help', description="Gives more detail on all the subcommands... eventually.")
+    async def help(self, interaction: discord.Interaction):
+        """Help description goes here"""
+        await interaction.response.send_message("Help functionality has not been built out yet. :/", ephemeral=True)
 
-    @commands.hybrid_command(name="initiative", aliases=['i'])
+    @sw_group.command(name="initiative") 
     @app_commands.describe(
-        characters='List of characters for the initiative round'
+        characters='List of characters for the initiative round. White space delimited.'
     )
-    async def initiative(self, ctx: commands.Context, characters: str):
-        """Generates initiative order using cards.
-        Input: ;initiative "Alice Bob Charlie Eve"
-        Output: __Initiative Order:__
-                Charlie: :black_joker: Joker! Act whenever you want in the round!
-                Eve: Q ♦︎
-                Bob: 10 ♥︎
-                Alice: 10 ♣︎
-        """
+    async def initiative(self, interaction: discord.Interaction, characters: str):
+        """Generates initiative order using cards."""
         # Parse characters: str into a list of characters
         character_list = characters.split(' ')
 
@@ -65,9 +48,9 @@ class Savage_Worlds(commands.Cog):
         result = '__Initiative Order:__\n'
         for _, value in sorted_results:
             result += f'{value}\n'
-        await ctx.send(result)
+        await interaction.response.send_message(result)
 
-    @app_commands.command(name="trait", description="Roll Savage World dice")
+    @sw_group.command(name="trait", description="Roll Savage World dice")
     @app_commands.describe(
         trait='Die size for the trait roll',
         wild_die='Yes if using a wild dice. Defaults to Yes.',
