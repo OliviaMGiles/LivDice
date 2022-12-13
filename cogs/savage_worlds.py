@@ -1,34 +1,49 @@
 import random
+import math
 import discord
 from dotenv import load_dotenv
 from discord.ext    import commands
 from discord import app_commands
+from discord.app_commands import Choice
+from typing import Literal
 
 class Savage_Worlds(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    # @commands.command(aliases=['r','roll'])
-    # async def roll_dice(self, ctx, dice: str):
-    #     """Alieses = r, roll. Use _d_ format. Simulates rolling dice.
-    #     """
-    #     try:
-    #         rolls, limit = map(int, dice.split('d'))
-    #     except Exception:
-    #         await ctx.send('Bad format! Use _d_ format', ephemeral=True)
-    #         return
-    #     result = ', '.join(str(random.randint(1,limit)) for r in range(rolls))
-    #     await ctx.send(result)
+    @commands.hybrid_group(name='sw', fallback ="get")
+    async def sw_command(self, ctx: commands.Context):
+        """Group for savage worlds commands
+        Group will include
+            ping (for testing)
+            trait roll
+            damage roll
+            status tracking
+            benny tracking
+        """
 
-    @commands.command(aliases=['i'])
-    async def initiative(self, ctx, *characters):
+    @sw_command.command(name="ping")
+    async def ping_command(self, ctx: commands.Context):
+        """This command is an app command AND a message command."""
+        await ctx.send("Pong!", ephemeral=True)
+
+    @commands.hybrid_command(name="initiative", aliases=['i'])
+    @app_commands.describe(
+        characters='List of characters for the initiative round'
+    )
+    async def initiative(self, ctx: commands.Context, characters: str):
         """Generates initiative order using cards.
-        Input: ;initiative Alice Bob Charlie Eve
-        Output: Charlie: :black_joker: Joker! Act whenever you want in the round!
+        Input: ;initiative "Alice Bob Charlie Eve"
+        Output: __Initiative Order:__
+                Charlie: :black_joker: Joker! Act whenever you want in the round!
                 Eve: Q ♦︎
                 Bob: 10 ♥︎
                 Alice: 10 ♣︎
         """
+        # Parse characters: str into a list of characters
+        character_list = characters.split(' ')
+
+        # Define the deck and draw chards for each character
         deck = {1:':black_joker: Joker! Act whenever you want in the round! Also add +2 to all Trait and damage rolls this round!',
         2:':black_joker: Joker! Act whenever you want in the round! Also add +2 to all Trait and damage rolls this round!', 
         3:'Ace ♠︎', 4:'Ace ♥︎', 5:'Ace ♦︎', 6:'Ace ♣︎',
@@ -40,10 +55,10 @@ class Savage_Worlds(commands.Cog):
         35:'6 ♠︎',36:'6 ♥︎',37:'6 ♦︎',38:'6 ♣︎',39:'5 ♠︎',40:'5 ♥︎',41:'5 ♦︎',42:'5 ♣︎',
         43:'4 ♠︎',44:'4 ♥︎',45:'4 ♦︎',46:'4 ♣︎',47:'3 ♠︎',48:'3 ♥︎',49:'3 ♦︎',50:'3 ♣︎',
         51:'2 ♠︎',52:'2 ♥︎',53:'2 ♦︎',54:'2 ♣︎'}
-        cards_drawn = random.sample(range(1,54), len(characters))
+        cards_drawn = random.sample(range(1,54), len(character_list))
         result_map = {}
-        for character in characters:
-            card_number_for_character = cards_drawn[characters.index(character)]
+        for character in character_list:
+            card_number_for_character = cards_drawn[character_list.index(character)]
             result_map[card_number_for_character] = f'**{character}:** {deck[card_number_for_character]}'
         
         sorted_results = sorted(result_map.items())
@@ -51,18 +66,74 @@ class Savage_Worlds(commands.Cog):
         for _, value in sorted_results:
             result += f'{value}\n'
         await ctx.send(result)
-        
-    @initiative.error
-    async def initiative_error(ctx: commands.Context, error: commands.CommandError):
-        return await ctx.send('Something went wrong',ephemeral=True)
 
-    @app_commands.command(name="savage", description="Roll Savage World dice")
-    async def savage(self, interaction: discord.Interaction, dice_size, wild_die):
-        die1 = random.randint(1,dice_size)
-        if wild_die == 'y':
-            die2 = random.randint(1,6)
-        result = max(die1, die2)
-        await interaction.response.send_message(f'Rolled {result}')
+    @app_commands.command(name="trait", description="Roll Savage World dice")
+    @app_commands.describe(
+        trait='Die size for the trait roll',
+        wild_die='Yes if using a wild dice. Defaults to Yes.',
+        modifier='The modifier to the roll. Defaults to 0.'
+    )
+    @app_commands.choices(trait=[
+        Choice(name='Unskilled', value=2),
+        Choice(name='d4', value=4),
+        Choice(name='d6', value=6),
+        Choice(name='d8', value=8),
+        Choice(name='d10', value=10),
+        Choice(name='d12', value=12)
+    ])
+    async def trait(self, interaction: discord.Interaction, trait:Choice[int], wild_die: Literal['Yes', 'No']='Yes', modifier: int=0):
+        """Trait Roll for Savage worlds
+        Unskilled rolls: roll a d4 for skill die (+ a wild die if present) and subtract 2 from the total.
+        Raises happen every 4 points over the Target Number. Raises are calculated after adjusting for modifiers.
+        Critical failures occure when a Wild Card rolls a 1 on both skill die and Wild Die.
+        """
+        if trait.value == 2:
+            # roll a d4 and subtract 2
+            trait_roll, trait_roll_log = exploding_roll(4)
+            modifier += -2
+        else:
+            trait_roll, trait_roll_log = exploding_roll(trait.value)
+        
+        if wild_die == 'Yes':
+            wild_roll, wild_roll_log = exploding_roll(6)
+        else:
+            wild_roll = 0
+        
+        roll_total = max(trait_roll, wild_roll) + modifier
+        # Evaluate for failures or successes
+        if trait_roll==1 and wild_roll ==1:
+            result = 'Critical Failure!'
+        elif roll_total < 4:
+            result = 'Failure'
+        elif roll_total >= 4:
+            result = 'Success!'
+            #Check for raises every 4 points
+            raises = math.floor((roll_total-4)/4)
+            if raises >= 1:
+                result = f'Success with {raises} raises!'
+        await interaction.response.send_message(f'Rolled: [{trait_roll_log}{ ", " + wild_roll_log if wild_roll != 0 else ""}] {"+" if (modifier >= 0) else ""} {modifier} \nResult: {result}')
+
+def exploding_roll(max:int):
+    """Rolls a 1d{max} and if the value is {max} it rolls again \n
+    first return value contains the sum\n
+    second return value contains a string that shows the explosions :boom:
+    """
+    roll = random.randint(1, max)
+    fancy_log = f'{roll}'
+    sum = roll
+    explostion_happened = False
+    while roll == max:
+        roll = random.randint(1, max)
+        fancy_log += f' :boom: {roll}'
+        sum += roll
+        explostion_happened = True
+    # Check to see if explosions happened, if yes, put the sum on the log
+    if explostion_happened:
+            fancy_log += f" = {sum}"
+    return sum, fancy_log
+
+    #TODO: implement status
 
 async def setup(bot):
     await bot.add_cog(Savage_Worlds(bot)) 
+

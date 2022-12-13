@@ -1,4 +1,5 @@
 # Changelog
 
 ## [Unreleased]
-- Support for Savage World basic skill checks
+- Slash command for Savage World trait rolls
+- Hybrid (slash and prefixed ";" commands) for Savage Worlds initiative

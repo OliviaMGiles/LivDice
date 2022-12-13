@@ -2,20 +2,26 @@ import os
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
+from discord import app_commands
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 APPLICATION_ID = os.getenv('APPLICATION_ID')
+GUILD_ID = os.getenv('DISCORD_GUILD_ID')
 
-class Bot(commands.Bot):
+class LivDice(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
-        super().__init__(command_prefix=';', intents=intents, application_id=APPLICATION_ID)
+        super().__init__(
+            command_prefix=';', 
+            intents=intents, 
+            application_id=APPLICATION_ID, 
+            guild=discord.Object(id=GUILD_ID))
 
     async def startup(self):
-            await bot.wait_until_ready()
-            print(f'{bot.user.name} is connected to Discord!')
+        await bot.wait_until_ready()
+        print(f'{bot.user.name} is connected to Discord!')
 
     async def setup_hook(self):
         for file in os.listdir('./cogs'):
@@ -26,7 +32,7 @@ class Bot(commands.Bot):
                 except Exception as e:
                     print(f'Failed to load {file}')
                     print(f'[ERROR] {e}')
-        self.loop.create_task(self.startup())
+        self.loop.create_task(self.startup()) 
 
-bot = Bot()
+bot = LivDice()
 bot.run(TOKEN)
