@@ -6,16 +6,132 @@ from discord import app_commands
 from discord.app_commands import Choice
 from typing import Literal
 
+global_parties = {}
+global_characters = {}
+statuses = {
+    'Shaken': 'Shaken characters may only move and take free actions. At the start of their turn, characters automatically make a Spirit roll to recover from being Shaken as afree action.',
+    'Distracted': 'The character suffers -2 to all Trait rolls until the end of his next turn.',
+    'Vulnerable': 'Actions and attacks against the target are made at +2 until the end of his next turn.',
+    'Entangled': 'The victim can’t move and is Distracted as long as he remains Entangled.',
+    'Bound': 'The victim may not move, is Distracted and Vulnerable as long as he remains Bound, and cannot make physical actions other than trying to break free.',
+    'Fatigued': '-1 to all Trait rolls. If he takes another level of Fatigue, he’s Exhausted.',
+    'Exhausted': '-2 to all Trait rolls. If he takes another level of Fatigue, he’s Incapacitated.',
+    'Stunned': 'A Stunned character is Distracted (removed at the end of his next turn as usual), Vulnerable (until he recovers), falls prone, can’t take actions, or move. At the start of each turn thereafter, he automatically makes a Vigor roll as a free action. Success means he’s no longer Stunned but remains Vulnerable until the end of his turn. With a raise, his Vulnerable state goes away at the end of this turn.',
+    'Wounded': '-1 to Pace, -1 to all Trait rolls.',
+    'Wounded x2': '-2 to Pace, -2 to all Trait rolls.',
+    'Wounded x3': '-3 to Pace, -3 to all Trait rolls.',
+    'Incapacitated': 'Characters may not perform actions but are still dealt Action Cards to track power effects or in case they recover.',
+    'Bleeding out': 'Failure -> death, Success -> survive until next turn, Raise -> stabilizes',
+    'Dead': ':skull:'
+}
+custom_statuses = {}
+
+def party_embed(party) -> discord.Embed:
+    """Formats a party list of characters into an embed."""
+    embed = discord.Embed(title=party)
+    for party_member in global_parties[party]:
+        pretty_status = ''
+        if global_characters[party_member] == []:
+            pretty_status = "`Healthy`"
+        else:
+            for status in global_characters[party_member]:
+                pretty_status += f"`{status}` "
+        embed.add_field(name=party_member, value=(f'*Status:* {pretty_status}'))
+    return embed
+
+def exploding_roll(max:int):
+    """Rolls a 1d{max} and if the value is {max} it rolls again \n
+    first return value contains the sum\n
+    second return value contains a string that shows the explosions :boom:
+    """
+    roll = random.randint(1, max)
+    fancy_log = f'{roll}'
+    sum = roll
+    explostion_happened = False
+    while roll == max:
+        roll = random.randint(1, max)
+        fancy_log += f' :boom: {roll}'
+        sum += roll
+        explostion_happened = True
+    # Check to see if explosions happened, if yes, put the sum on the log
+    if explostion_happened:
+            fancy_log += f" = {sum}"
+    return sum, fancy_log
+
+########################################################################################################################
+
 class Savage_Worlds(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     sw_group = app_commands.Group(name="sw", description="Savage Worlds commands")
 
-    @sw_group.command(name='help', description="Gives more detail on all the subcommands... eventually.")
-    async def help(self, interaction: discord.Interaction):
-        """Help description goes here"""
-        await interaction.response.send_message("Help functionality has not been built out yet. :/", ephemeral=True)
+    @sw_group.command(name='party', description='Show the state of the party and add characters.')
+    @app_commands.describe(
+        characters='Characters to add to the party.',
+        party_name='Name of the party.',
+        ephemeral='Whether to send as an ephemeral message or not. Default is True.'
+    )
+    async def party(self, interaction: discord.Interaction, characters: str="", party_name: str="", ephemeral:bool=True):
+        global global_parties
+        global global_characters
+        if characters == "":
+            if global_parties == {}:
+                await interaction.response.send_message(f'There is no party.', ephemeral=ephemeral)
+            elif party_name in global_parties.keys():
+                await interaction.response.send_message(embed=party_embed(party_name), ephemeral=ephemeral)
+            else:
+                embeds = []
+                for party in global_parties:
+                    embeds.append(party_embed(party))
+                await interaction.response.send_message(f'These are all the parties:', embeds=embeds, ephemeral=ephemeral)
+        roster = []
+        if characters != "":
+            list_of_names = characters.split(' ')
+            for name in list_of_names:
+                roster.append((name))
+                global_characters[name] = []
+            if party_name == "":
+                party_name = "Party"
+            if party_name in global_parties.keys():
+                roster = global_parties[party_name] + roster
+            global_parties[party_name] = roster
+            await interaction.response.send_message(embed=party_embed(party_name),ephemeral=ephemeral)
+
+    @sw_group.command(name='disolve_party', description='Party’s over!')
+    @app_commands.describe(
+        party = 'The party you want to end. Default is to end all parties.',
+        ephemeral='Whether to send as an ephemeral message or not. Default is True.'
+    )
+    async def disolve_party(self, interaction: discord.Interaction, party: str="", ephemeral: bool=True):
+        if party == "":
+            global_parties.clear()
+            await interaction.response.send_message('*All* Parties are over!', ephemeral=ephemeral)
+        elif party in global_parties.keys():
+            del global_parties[party]
+            await interaction.response.send_message('Party’s over!', ephemeral=ephemeral)
+        else:
+            await interaction.response.send_message(f'There isn’t a party named {party}. (The party *might* go on...)', ephemeral=ephemeral)
+
+    @sw_group.command(name='kick_partymemeber', description='For when someone is being a pooper.')
+    @app_commands.describe(
+        party_member='The party member to remove from the party.',
+        party='The party from which to remove the offender. Default is all parties.',
+        ephemeral='Whether to send as an ephemeral message or not. Default is True.'
+    )
+    async def kick_partymemeber(self, interaction: discord.Interaction, party_member: str, party: str='', ephemeral: bool=True):
+        response = f'{party_member} is a loner. They were never even in a party.'
+        if party in global_parties.keys():
+            response = f'{party_member} was never even in {party}. They are uninvited anyway!'
+            if party_member in global_parties[party]:
+                global_parties[party].remove(party_member)
+                response = f'{party_member} has left {party}.'
+        else:
+            for existing_party in global_parties.keys():
+                if party_member in global_parties[existing_party]:
+                    global_parties[existing_party].remove(party_member)
+                    response = f'{party_member} has left all parties they were in.'
+        await interaction.response.send_message(response, ephemeral=ephemeral)
 
     @sw_group.command(name="initiative") 
     @app_commands.describe(
@@ -96,26 +212,6 @@ class Savage_Worlds(commands.Cog):
                 result = f'Success with {raises} raises!'
         await interaction.response.send_message(f'Rolled: [{trait_roll_log}{ ", " + wild_roll_log if wild_roll != 0 else ""}] {"+" if (modifier >= 0) else ""} {modifier} \nResult: {result}')
 
-def exploding_roll(max:int):
-    """Rolls a 1d{max} and if the value is {max} it rolls again \n
-    first return value contains the sum\n
-    second return value contains a string that shows the explosions :boom:
-    """
-    roll = random.randint(1, max)
-    fancy_log = f'{roll}'
-    sum = roll
-    explostion_happened = False
-    while roll == max:
-        roll = random.randint(1, max)
-        fancy_log += f' :boom: {roll}'
-        sum += roll
-        explostion_happened = True
-    # Check to see if explosions happened, if yes, put the sum on the log
-    if explostion_happened:
-            fancy_log += f" = {sum}"
-    return sum, fancy_log
-
-    #TODO: implement status
 
 async def setup(bot):
     await bot.add_cog(Savage_Worlds(bot)) 
