@@ -4,7 +4,11 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from discord.app_commands import Choice
-from typing import Literal
+from typing import Literal, List
+import logging
+
+logger = logging.getLogger('discord')
+logging.basicConfig(level=logging.DEBUG)
 
 global_parties = {}
 global_characters = {}
@@ -24,7 +28,17 @@ statuses = {
     'Bleeding out': 'Failure -> death, Success -> survive until next turn, Raise -> stabilizes',
     'Dead': ':skull:'
 }
-custom_statuses = {}
+
+def character_embed(character) -> discord.Embed:
+    """Makes an embed for a charcter that lists their statuses"""
+    embed = discord.Embed(title = character)
+    if character not in global_characters.keys():
+        global_characters[character] = []
+    if global_characters[character] == []:
+        embed.add_field(name='Healthy', value=':green_heart:')
+    for status in global_characters[character]:
+        embed.add_field(name=status, value=statuses[status])
+    return embed
 
 def party_embed(party) -> discord.Embed:
     """Formats a party list of characters into an embed."""
@@ -66,6 +80,57 @@ class Savage_Worlds(commands.Cog):
 
     sw_group = app_commands.Group(name="sw", description="Savage Worlds commands")
 
+    @sw_group.command(name='status', description='Show and edit the statuses on a character.')
+    @app_commands.describe(
+        character='Who to apply the statuses to.',
+        add_status='Status to add. Options from autocomplete will have descriptions too.',
+        remove_status='Status to remove. Options from autocomplete are statuses the character has.'
+    )
+    async def status(self, interaction: discord.Interaction, character: str, add_status: str="", remove_status: str="", ephemeral:bool = True):
+        if character in global_characters.keys():
+            current_status = global_characters[character]
+            if add_status != "":
+                current_status.append(add_status)
+            if remove_status in current_status:
+                current_status.remove(remove_status)
+            global_characters[character] = current_status
+        else:
+            current_status = add_status
+            global_characters[character] = [current_status]
+        logging.debug(f'global_characters: {global_characters}')
+        await interaction.response.send_message(embed=character_embed(character), ephemeral=ephemeral)
+
+    @status.autocomplete('character')
+    async def characters_autocomplete(self, interaction: discord.Interaction, current:str) -> List[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(name=character, value=character)
+            for character in list(global_characters.keys()) if current.lower() in character.lower()
+        ]
+
+    @status.autocomplete('add_status')
+    async def statuses_autocomplete(self, interaction: discord.Interaction, current:str) -> List[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(name=status, value=status)
+            for status in list(statuses.keys()) if current.lower() in status.lower()
+        ]
+
+    @status.autocomplete('remove_status')
+    async def remove_statuses_autocomplete(self, interaction: discord.Interaction, current:str) -> List[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(name=status, value=status)
+            for status in list(global_characters[interaction.namespace.character]) if current.lower() in status.lower()
+        ]
+
+    @sw_group.command(name='add_status', description='Add a new custom status along with a description.')
+    @app_commands.describe(
+        status_name='Name of the status',
+        status_description='Describe what the status does mechanically.'
+    )
+    async def add_status(self, interaction: discord.Interaction, status_name: str, status_description:str):
+        global statuses
+        statuses.update({status_name: status_description})
+        await interaction.response.send_message(f'Added {status_name}', ephemeral=True)
+
     @sw_group.command(name='party', description='Show the state of the party and add characters.')
     @app_commands.describe(
         characters='Characters to add to the party.',
@@ -90,11 +155,13 @@ class Savage_Worlds(commands.Cog):
             list_of_names = characters.split(' ')
             for name in list_of_names:
                 roster.append((name))
-                global_characters[name] = []
+                if name not in global_characters.keys():
+                    global_characters[name] = []
             if party_name == "":
                 party_name = "Party"
             if party_name in global_parties.keys():
-                roster = global_parties[party_name] + roster
+                # prevent duplicates
+                roster = list(set(global_parties[party_name] + roster))
             global_parties[party_name] = roster
             await interaction.response.send_message(embed=party_embed(party_name),ephemeral=ephemeral)
 
@@ -132,6 +199,30 @@ class Savage_Worlds(commands.Cog):
                     global_parties[existing_party].remove(party_member)
                     response = f'{party_member} has left all parties they were in.'
         await interaction.response.send_message(response, ephemeral=ephemeral)
+
+    @kick_partymemeber.autocomplete('party_member')
+    async def characters_autocomplete(self, interaction: discord.Interaction, current:str) -> List[app_commands.Choice[str]]:
+        # If 'party' is filled in, give options for characters in that party
+        if interaction.namespace.party != None:
+            autofill = [
+                app_commands.Choice(name=character, value=character)
+                for character in list(global_parties[interaction.namespace.party]) if current.lower() in character.lower()
+            ]
+        else: # Else, give a list of all charcters
+            autofill = [
+                app_commands.Choice(name=character, value=character)
+                for character in list(global_characters.keys()) if current.lower() in character.lower()
+            ]
+        return autofill
+
+    @party.autocomplete('party_name')
+    @disolve_party.autocomplete('party')
+    @kick_partymemeber.autocomplete('party')
+    async def parties_autocomplete(self, interaction: discord.Interaction, current:str) -> List[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(name=character, value=character)
+            for character in list(global_parties.keys()) if current.lower() in character.lower()
+        ]
 
     @sw_group.command(name="initiative") 
     @app_commands.describe(
@@ -215,4 +306,3 @@ class Savage_Worlds(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Savage_Worlds(bot)) 
-
