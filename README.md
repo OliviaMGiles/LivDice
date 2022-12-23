@@ -1,5 +1,5 @@
 # dicebot
-A discord dice bot made to support Savage Worlds TTRPG
+A discord dice bot made to support Savage Worlds TTRPG and Genesys TTRPG
 
 # Permissions needed
 Read Messages/View Channels

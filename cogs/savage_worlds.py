@@ -7,9 +7,6 @@ from discord.app_commands import Choice
 from typing import Literal, List
 import logging
 
-logger = logging.getLogger('discord')
-logging.basicConfig(level=logging.DEBUG)
-
 global_parties = {}
 global_characters = {}
 statuses = {
