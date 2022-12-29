@@ -7,7 +7,6 @@ from discord import app_commands
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 APPLICATION_ID = os.getenv('APPLICATION_ID')
-GUILD_ID = os.getenv('DISCORD_GUILD_ID')
 
 class LivDice(commands.Bot):
     def __init__(self):
@@ -16,8 +15,7 @@ class LivDice(commands.Bot):
         super().__init__(
             command_prefix=';', 
             intents=intents, 
-            application_id=APPLICATION_ID, 
-            guild=discord.Object(id=GUILD_ID))
+            application_id=APPLICATION_ID)
 
     async def startup(self):
         await bot.wait_until_ready()

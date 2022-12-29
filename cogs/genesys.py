@@ -3,7 +3,6 @@ import discord
 from discord.ext    import commands
 from discord import app_commands
 from enum import Enum
-import logging
 
 dice = Enum('dice', ['ability','proficiency','difficulty','challenge','boost', 'setback'])
 
@@ -139,7 +138,6 @@ class Genesys(commands.Cog):
             end_result += f'\n{totals.triumphs} Triumph! :tada: '
         if totals.despairs != 0:
             end_result += f'\n{totals.despairs} Despair! :drop_of_blood: '
-        logging.debug(f'Genesys dice:\n\tInput: {ability}, {proficiency}, {difficulty}, {challenge}, {boost}, {setback}\n\tResult: {totals}')
         await interaction.response.send_message(f'Raw results: `{totals}`\n**End result:** \n\t{end_result}', ephemeral=ephemeral)
 
 async def setup(bot):
