@@ -1,4 +1,5 @@
 import random
+import re
 from typing import Literal, Optional
 import discord
 from discord import app_commands
@@ -7,6 +8,25 @@ from discord.ext.commands import Context
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
+
+def exploding_roll(sides:int, explode:bool):
+    """Rolls a 1d{sides} and if the value is {sides} and explode is true, it rolls again \n
+    first return value contains the sum\n
+    second return value contains a string that shows the explosions :boom:
+    """
+    roll = random.randint(1, sides)
+    fancy_log = f'{roll}'
+    sum = roll
+    explostion_happened = False
+    while explode and roll == sides:
+        roll = random.randint(1, sides)
+        fancy_log += f' :boom: {roll}'
+        sum += roll
+        explostion_happened = True
+    # Check to see if explosions happened, if yes, put the sum on the log
+    if explostion_happened:
+        fancy_log += f" = {sum}"
+    return sum, fancy_log
 
 class general(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -39,21 +59,43 @@ class general(commands.Cog):
             synced = await ctx.bot.tree.sync(guild=ctx.guild)
             await ctx.send(f'Synced {len(synced)} commands to current guild')
 
-    @commands.command(aliases=['r','roll'])
-    async def roll_dice(self, ctx: Context, dice: str):
-        """Alieses = r, roll. Use NdN or format. Simulates rolling dice.
-        """
-        try:
-            rolls, sides = map(int, dice.split('d'))
-        except Exception:
-            await ctx.send('Bad format! Use NdN format', reference=ctx.message)
-            return
-        result = ', '.join(str(random.randint(1,sides)) for r in range(rolls))
-        await ctx.send(result, reference=ctx.message)
+    @app_commands.command(name='roll', description='Roll [-+]?\d*d\d+!?|[-+]?\d+ dice')
+    @app_commands.describe(
+        dice='Comma separated, each term should match: [-+]?<quantity>*d<sides>+!?|[-+]?<constant modifier>',
+        comment='Whatcha rolling for?'
+    )
+    async def roll_dice(self, interaction: discord.Interaction, dice: str, comment:str=''):
+        pools = dice.split(',')
+        result = []
+        for pool in pools:
+            terms = re.findall("[-+]?\d*d\d+!?|[-+]?\d+", pool)
+            summation = 0
+            for term in terms:
+                explode = False
+                # Resolve if explostion
+                if re.search("!", term):
+                    explode = True
+                    term = term.strip('!')
+                # Resolve die rolls
+                if re.search("\d*d\d+", term):
+                    quantity, sides = term.split('d')
+                    if quantity == '': # If the quantity is left out, assume 1
+                        quantity = 1
+                    quantity = int(quantity)
+                    sides = int(sides)
+                    if quantity <= 0: # If the quantity is negative, the rolls should be subtracted from the total
+                        quantity = 1-quantity
+                        for _ in range(quantity):
+                            summation -= exploding_roll(sides, explode)[0]
+                    else:
+                        for _ in range(quantity):
+                            summation += exploding_roll(sides, explode)[0]
+                # else it is a constant modifier
+                else:
+                    summation += int(term)
+            result.append(summation)
 
-    @app_commands.command(name="test", description="Testing slash commands")
-    async def test(self, interaction: discord.Interaction):
-        await interaction.response.send_message('Testing!')
+        await interaction.response.send_message(f'{"**"+comment+":** " if comment != "" else ""}{dice} ➔ {result}')
 
 async def setup(bot):
     await bot.add_cog(general(bot)) 

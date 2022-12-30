@@ -127,17 +127,17 @@ class Genesys(commands.Cog):
         net_advantages = totals.advantages - totals.threats
         end_result = ""
         if net_suceess > 0:
-            end_result += f'{net_suceess} Successes :eight_spoked_asterisk: '
-        elif net_suceess < 0:
-            end_result += f'{0 - net_suceess} Failures :x: '
+            end_result += f'{net_suceess} Success{"es" if net_suceess > 1 else ""} :dart:'
+        elif net_suceess <= 0:
+            end_result += f'Failure :x:'
         if net_advantages > 0:
-            end_result += f'{net_advantages} Advantages :arrow_up_small: '
+            end_result += f', {net_advantages} Advantage{"s" if net_advantages > 1 else ""} :arrow_up_small: '
         elif net_advantages < 0:
-            end_result += f'{0 - net_advantages} Threats :anger: '
+            end_result += f', {0 - net_advantages} Threat{"s" if net_advantages < -1 else ""} :anger: '
         if totals.triumphs != 0:
-            end_result += f'\n{totals.triumphs} Triumph! :tada: '
+            end_result += f'\n\t{totals.triumphs} Triumph{"s" if totals.triumphs > 1 else ""}! :tada: '
         if totals.despairs != 0:
-            end_result += f'\n{totals.despairs} Despair! :drop_of_blood: '
+            end_result += f'\n\t{totals.despairs} Despair{"s" if totals.despairs > 1 else ""}! :skull: '
         await interaction.response.send_message(f'Raw results: `{totals}`\n**End result:** \n\t{end_result}', ephemeral=ephemeral)
 
 async def setup(bot):

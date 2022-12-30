@@ -6,6 +6,7 @@ from discord import app_commands
 from discord.app_commands import Choice
 from typing import Literal, List
 import logging
+from .general import exploding_roll
 
 global_parties = {}
 global_characters = {}
@@ -49,25 +50,6 @@ def party_embed(party) -> discord.Embed:
                 pretty_status += f"`{status}` "
         embed.add_field(name=party_member, value=(f'*Status:* {pretty_status}'))
     return embed
-
-def exploding_roll(max:int):
-    """Rolls a 1d{max} and if the value is {max} it rolls again \n
-    first return value contains the sum\n
-    second return value contains a string that shows the explosions :boom:
-    """
-    roll = random.randint(1, max)
-    fancy_log = f'{roll}'
-    sum = roll
-    explostion_happened = False
-    while roll == max:
-        roll = random.randint(1, max)
-        fancy_log += f' :boom: {roll}'
-        sum += roll
-        explostion_happened = True
-    # Check to see if explosions happened, if yes, put the sum on the log
-    if explostion_happened:
-            fancy_log += f" = {sum}"
-    return sum, fancy_log
 
 ########################################################################################################################
 
@@ -258,7 +240,8 @@ class Savage_Worlds(commands.Cog):
     @app_commands.describe(
         trait='Die size for the trait roll',
         wild_die='Yes if using a wild dice. Defaults to Yes.',
-        modifier='The modifier to the roll. Defaults to 0.'
+        modifier='The modifier to the roll. Defaults to 0.',
+        comment='Whatcha rolling for?'
     )
     @app_commands.choices(trait=[
         Choice(name='Unskilled', value=2),
@@ -268,7 +251,7 @@ class Savage_Worlds(commands.Cog):
         Choice(name='d10', value=10),
         Choice(name='d12', value=12)
     ])
-    async def trait(self, interaction: discord.Interaction, trait:Choice[int], wild_die: Literal['Yes', 'No']='Yes', modifier: int=0):
+    async def trait(self, interaction: discord.Interaction, trait:Choice[int], wild_die: Literal['Yes', 'No']='Yes', modifier: int=0, comment:str=''):
         """Trait Roll for Savage worlds
         Unskilled rolls: roll a d4 for skill die (+ a wild die if present) and subtract 2 from the total.
         Raises happen every 4 points over the Target Number. Raises are calculated after adjusting for modifiers.
@@ -276,29 +259,36 @@ class Savage_Worlds(commands.Cog):
         """
         if trait.value == 2:
             # roll a d4 and subtract 2
-            trait_roll, trait_roll_log = exploding_roll(4)
+            trait_roll, trait_roll_log = exploding_roll(4, True)
             modifier += -2
         else:
-            trait_roll, trait_roll_log = exploding_roll(trait.value)
+            trait_roll, trait_roll_log = exploding_roll(trait.value, True)
         
         if wild_die == 'Yes':
-            wild_roll, wild_roll_log = exploding_roll(6)
+            wild_roll, wild_roll_log = exploding_roll(6, True)
         else:
             wild_roll = 0
         
         roll_total = max(trait_roll, wild_roll) + modifier
         # Evaluate for failures or successes
         if trait_roll==1 and wild_roll ==1:
-            result = 'Critical Failure!'
+            result = 'Critical Failure! :skull:'
         elif roll_total < 4:
-            result = 'Failure'
+            result = 'Failure :x:'
         elif roll_total >= 4:
-            result = 'Success!'
+            result = 'Success! :dart:'
             #Check for raises every 4 points
             raises = math.floor((roll_total-4)/4)
             if raises >= 1:
-                result = f'Success with {raises} raises!'
-        await interaction.response.send_message(f'Rolled: [{trait_roll_log}{ ", " + wild_roll_log if wild_roll != 0 else ""}] {"+" if (modifier >= 0) else ""} {modifier} \nResult: {result}')
+                result = f'Success with {raises} raise{"s" if raises > 1 else ""}! :dart:'
+                for _ in range(raises):
+                    result += ":dart:"
+        formatted_response = f'{"**"+comment+":** " if comment != "" else "Rolled: "}'
+        formatted_response += f'[{trait_roll_log}{ ", " + wild_roll_log if wild_roll != 0 else ""}]'
+        if modifier != 0:
+            formatted_response = f'{"+" if (modifier >= 0) else ""}{modifier}'
+        formatted_response += f'\nResult: {result}'
+        await interaction.response.send_message(formatted_response)
 
 
 async def setup(bot):
