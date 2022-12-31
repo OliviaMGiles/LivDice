@@ -2,6 +2,7 @@ import os
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
+import logging
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -18,17 +19,17 @@ class LivDice(commands.Bot):
 
     async def startup(self):
         await bot.wait_until_ready()
-        print(f'{bot.user.name} is connected to Discord!')
+        logging.info(f'{bot.user.name} is connected to Discord!')
 
     async def setup_hook(self):
         for file in os.listdir('./cogs'):
             if file.endswith('py'):
                 try:
                     await bot.load_extension(f'cogs.{file[:-3]}')
-                    print(f'Loaded {file}')
+                    logging.info(f'Loaded {file}')
                 except Exception as e:
-                    print(f'Failed to load {file}')
-                    print(f'[ERROR] {e}')
+                    logging.warn(f'Failed to load {file}')
+                    logging.warn(f'[ERROR] {e}')
         self.loop.create_task(self.startup()) 
 
 bot = LivDice()
