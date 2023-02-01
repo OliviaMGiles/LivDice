@@ -138,7 +138,11 @@ class Genesys(commands.Cog):
             end_result += f'\n\t{totals.triumphs} Triumph{"s" if totals.triumphs > 1 else ""}! :tada: '
         if totals.despairs != 0:
             end_result += f'\n\t{totals.despairs} Despair{"s" if totals.despairs > 1 else ""}! :skull: '
-        await interaction.response.send_message(f'{"**"+comment+":**\n" if comment != "" else ""}Raw results: `{totals}`\n**End result:** \n\t{end_result}')
+
+        comment_line = ''
+        if comment != '':
+            comment_line = f'**'+comment+':**\n'
+        await interaction.response.send_message(f"{comment_line}Raw results: `{totals}`\nEnd result: {end_result}")
 
 async def setup(bot):
     await bot.add_cog(Genesys(bot)) 

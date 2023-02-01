@@ -28,8 +28,8 @@ class LivDice(commands.Bot):
                     await bot.load_extension(f'cogs.{file[:-3]}')
                     logging.info(f'Loaded {file}')
                 except Exception as e:
-                    logging.warn(f'Failed to load {file}')
-                    logging.warn(f'[ERROR] {e}')
+                    logging.warning(f'Failed to load {file}')
+                    logging.warning(f'[ERROR] {e}')
         self.loop.create_task(self.startup()) 
 
 bot = LivDice()

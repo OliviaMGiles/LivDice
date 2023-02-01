@@ -38,6 +38,7 @@ class general(commands.Cog):
     async def sync(self, ctx: Context, sync_options: Optional[Literal["global", "clear", "clear_global"]] = None):
         """Syncs slash commands
             When to sync: https://gist.github.com/AbstractUmbra/a9c188797ae194e592efe05fa129c57f#file-4-when_to_sync-md
+            If you want to push changes to global it is sufficent to run the ';sync global' command. It won't make duplicates, probably.
         """
         if sync_options == 'global':
             logging.debug('Syncing globaly')
