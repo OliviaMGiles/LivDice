@@ -100,9 +100,9 @@ class Genesys(commands.Cog):
         challenge='d12 Negative',
         boost='d6 Positive',
         setback='d6 Negative',
-        ephemeral='Whether to send as an ephemeral message or not. Default is False.'
+        comment='Whatcha rolling for?'
     )
-    async def roll(self, interaction: discord.Interaction, ability: int=0, proficiency: int=0, difficulty: int=0, challenge:int=0, boost: int=0, setback:int=0, ephemeral:bool=False):
+    async def roll(self, interaction: discord.Interaction, ability: int=0, proficiency: int=0, difficulty: int=0, challenge:int=0, boost: int=0, setback:int=0, comment:str=''):
         totals = Roll_result()
         for _ in range(ability):
             result = roll_genesys(dice.ability)
@@ -138,7 +138,7 @@ class Genesys(commands.Cog):
             end_result += f'\n\t{totals.triumphs} Triumph{"s" if totals.triumphs > 1 else ""}! :tada: '
         if totals.despairs != 0:
             end_result += f'\n\t{totals.despairs} Despair{"s" if totals.despairs > 1 else ""}! :skull: '
-        await interaction.response.send_message(f'Raw results: `{totals}`\n**End result:** \n\t{end_result}', ephemeral=ephemeral)
+        await interaction.response.send_message(f'{"**"+comment+":**\n" if comment != "" else ""}Raw results: `{totals}`\n**End result:** \n\t{end_result}')
 
 async def setup(bot):
     await bot.add_cog(Genesys(bot)) 
