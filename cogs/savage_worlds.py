@@ -286,7 +286,7 @@ class Savage_Worlds(commands.Cog):
         formatted_response = f'{"**"+comment+":** " if comment != "" else "Rolled: "}'
         formatted_response += f'[{trait_roll_log}{ ", " + wild_roll_log if wild_roll != 0 else ""}]'
         if modifier != 0:
-            formatted_response = f'{"+" if (modifier >= 0) else ""}{modifier}'
+            formatted_response += f'{"+" if (modifier >= 0) else ""}{modifier}'
         formatted_response += f'\nResult: {result}'
         await interaction.response.send_message(formatted_response)
 
