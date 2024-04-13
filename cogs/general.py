@@ -15,18 +15,71 @@ def exploding_roll(sides:int, explode:bool):
     second return value contains a string that shows the explosions :boom:
     """
     roll = random.randint(1, sides)
-    fancy_log = f'{roll}'
+    explosion_log = f'{roll}'
     sum = roll
-    explostion_happened = False
     while explode and roll == sides:
         roll = random.randint(1, sides)
-        fancy_log += f' :boom: {roll}'
+        explosion_log += f' :boom: {roll}'
         sum += roll
-        explostion_happened = True
-    # Check to see if explosions happened, if yes, put the sum on the log
-    if explostion_happened:
-        fancy_log += f" = {sum}"
-    return sum, fancy_log
+    return sum, explosion_log
+
+# Each term is a number of equal-sized dice, or it is a modifier
+# This function returns the log of individual dice results, the sign of the term, and the sum
+def resolve_dice_term(term):
+    explode = False
+    results = ''
+    sum = 0
+    sign = "+"
+    # Resolve if explostion
+    if re.search("!", term):
+        explode = True
+        term = term.strip('!')
+    # Resolve die rolls
+    if re.search("\d*d\d+", term):
+        quantity, sides = term.split('d')
+        if quantity == '': # If the quantity is left out, assume 1
+            quantity = 1
+        quantity = int(quantity)
+        result_set = []
+        sides = int(sides)
+        if quantity <= 0: # If the quantity is negative, the rolls should be subtracted from the total
+            sign = "-"
+            quantity = 0-quantity
+            for _ in range(quantity):
+                die_sum, explosion_log = exploding_roll(sides, explode)
+                sum -= die_sum
+                result_set.append(explosion_log)
+        else:
+            for _ in range(quantity):
+                die_sum, explosion_log = exploding_roll(sides, explode)
+                sum += die_sum
+                result_set.append(explosion_log)
+        results = f'[{", ".join(result_set)}]'
+    # else it is a constant modifier
+    else:
+        term = int(term)
+        if term <= 0: # If the constant modifier is negative, set the sign to negative
+            sign = "-"
+        sum += term
+        results = abs(term)
+    return str(results), sign, sum
+
+# Each pool can be made of multiple dice and modifiers, called "terms"
+# This function retruns the log of the dice pool, and the sum of the terms
+def resolve_dice_pool(pool):
+    terms = re.findall("[-+]?\d*d\d+!?|[-+]?\d+", pool)
+    results = ''
+    sum = 0
+    first = True
+    for term in terms:
+        term_result, term_sign, term_sum = resolve_dice_term(term)
+        if first and term_sign == "+":
+            results += term_result
+        else:
+            results += term_sign + term_result
+        sum += term_sum
+        first = False
+    return results, str(sum)
 
 class general(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -62,42 +115,19 @@ class general(commands.Cog):
 
     @app_commands.command(name='roll', description='Roll [-+]?\d*d\d+!?|[-+]?\d+ dice')
     @app_commands.describe(
-        dice='Comma separated, each term should match: [-+]?<quantity>*d<sides>+!?|[-+]?<constant modifier>',
+        dice='Comma separated, each term should match: [-+]?<quantity>*d<sides>+!?|[-+]?<constant modifier>\nUse "!" to indicate the dice should explode.',
         comment='Whatcha rolling for?'
     )
     async def roll_dice(self, interaction: discord.Interaction, dice: str, comment:str=''):
         dice = dice.lower()
         pools = dice.split(',')
-        result = []
-        for pool in pools:
-            terms = re.findall("[-+]?\d*d\d+!?|[-+]?\d+", pool)
-            summation = 0
-            for term in terms:
-                explode = False
-                # Resolve if explostion
-                if re.search("!", term):
-                    explode = True
-                    term = term.strip('!')
-                # Resolve die rolls
-                if re.search("\d*d\d+", term):
-                    quantity, sides = term.split('d')
-                    if quantity == '': # If the quantity is left out, assume 1
-                        quantity = 1
-                    quantity = int(quantity)
-                    sides = int(sides)
-                    if quantity <= 0: # If the quantity is negative, the rolls should be subtracted from the total
-                        quantity = 1-quantity
-                        for _ in range(quantity):
-                            summation -= exploding_roll(sides, explode)[0]
-                    else:
-                        for _ in range(quantity):
-                            summation += exploding_roll(sides, explode)[0]
-                # else it is a constant modifier
-                else:
-                    summation += int(term)
-            result.append(summation)
-
-        await interaction.response.send_message(f'{"**"+comment+":** " if comment != "" else ""}{dice} ➔ {result}')
+        results = []
+        result_sum = []
+        results, result_sum = zip(*(resolve_dice_pool(pool) for pool in pools))
+        formatted_response = f'{"**"+comment+":** " if comment != "" else ""}{dice}'
+        formatted_response += f'\nResults: {", ".join(results)}'
+        formatted_response += f'\nSum: {", ".join(result_sum)}'
+        await interaction.response.send_message(formatted_response)
 
 async def setup(bot):
     await bot.add_cog(general(bot)) 

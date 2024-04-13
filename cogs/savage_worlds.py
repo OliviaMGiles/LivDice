@@ -5,7 +5,6 @@ from discord.ext import commands
 from discord import app_commands
 from discord.app_commands import Choice
 from typing import Literal, List
-import logging
 from .general import exploding_roll
 
 class Savage_Worlds(commands.Cog):
@@ -66,7 +65,7 @@ class Savage_Worlds(commands.Cog):
         """Trait Roll for Savage worlds
         Unskilled rolls: roll a d4 for skill die (+ a wild die if present) and subtract 2 from the total.
         Raises happen every 4 points over the Target Number. Raises are calculated after adjusting for modifiers.
-        Critical failures occure when a Wild Card rolls a 1 on both skill die and Wild Die.
+        Critical failures occur when a Wild Card rolls a 1 on both skill die and Wild Die.
         """
         if trait.value == 2:
             # roll a d4 and subtract 2
@@ -97,7 +96,7 @@ class Savage_Worlds(commands.Cog):
         formatted_response = f'{"**"+comment+":** " if comment != "" else "Rolled: "}'
         formatted_response += f'[{trait_roll_log}{ ", " + wild_roll_log if wild_roll != 0 else ""}]'
         if modifier != 0:
-            formatted_response += f'{"+" if (modifier >= 0) else ""}{modifier}'
+            formatted_response += f'{" + " if (modifier >= 0) else ""}{modifier} = {roll_total}'
         formatted_response += f'\nResult: {result}'
         await interaction.response.send_message(formatted_response)
 
