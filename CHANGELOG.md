@@ -2,7 +2,8 @@
 
 ## [1.2.0] - 2024-12-28
 ### Added
-- Fate system support
+- Fate rolls
+- Fate Points tracking
 
 ## [1.1.1] - 2024-04-12
 ### Modified
