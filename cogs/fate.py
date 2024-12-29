@@ -86,15 +86,14 @@ class Fate(commands.Cog):
         if character_name not in global_characters.keys():
             global_characters[character_name] = Character(character_name, 3, "Initial 3 points")
         thisCharacter = global_characters[character_name] 
-        match action:
-            case 'Add':
-                thisCharacter.current_points += 1
-                thisCharacter.log += f'\n `+ 1` \t{message}'
-                ephemeral = False
-            case 'Subtract':
-                thisCharacter.current_points -= 1
-                thisCharacter.log += f'\n `- 1` \t{message}'
-                ephemeral = False
+        if action == 'Add':
+            thisCharacter.current_points += 1
+            thisCharacter.log += f'\n `+ 1` \t{message}'
+            ephemeral = False
+        elif action == 'Subtract':
+            thisCharacter.current_points -= 1
+            thisCharacter.log += f'\n `- 1` \t{message}'
+            ephemeral = False
         await interaction.response.send_message(embed=character_embed(thisCharacter), ephemeral=ephemeral)
 
     @fate_group.command(name="clear", description="Clear a character from the list for tracking Fate points.")
