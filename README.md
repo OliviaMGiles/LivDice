@@ -15,11 +15,12 @@ A discord dice bot made to support Savage Worlds TTRPG and Genesys TTRPG
 
 - Genesys dice pool: `/genesys roll`
 
-
 - Trait Rolls for Savage World with optional Wild Dice:  `/sw trait`
     - Shows explosions :boom: and counts successes and raises :dart:
 
 - Savage Worlds initiative tracking: `/sw initiative`
+
+- Fate dice roll: `/fate roll`
 
 # Permissions needed
 - Read Messages/View Channels

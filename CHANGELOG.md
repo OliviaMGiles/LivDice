@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.0] - 2024-12-28
+### Added
+- Fate system support
+
 ## [1.1.1] - 2024-04-12
 ### Modified
 - Changed how sums are displayed in Savage World trait rolls
